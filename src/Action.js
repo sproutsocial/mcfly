@@ -4,7 +4,11 @@ var Promise = require('es6-promise').Promise;
 
 
 function reThrow(reject, error) {
-  setTimeout(function(){ throw error; }, 0);
+  setTimeout(function(){ 
+      if (error && error.stack) {
+          console.error(error.stack);
+      }
+      throw error; }, 0);
   return reject();
 }
 
@@ -37,7 +41,13 @@ class Action {
           if (!payload.actionType) return reThrow(reject,
             "Payload object requires an actionType property"
           );
-          Dispatcher.dispatch(payload)
+
+          try {
+            Dispatcher.dispatch(payload);
+          } catch (error) {
+            reThrow(reject, error); 
+          }
+
           resolve();
         });
       });
