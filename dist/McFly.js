@@ -1,12 +1,17 @@
 !function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.McFly=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 module.exports = require('./lib/McFly');
 },{"./lib/McFly":5}],2:[function(require,module,exports){
+'use strict';
 var Dispatcher = require('./Dispatcher');
 var Promise = require('es6-promise').Promise;
 
 
 function reThrow(reject, error) {
-  setTimeout(function(){ throw error; }, 0);
+  setTimeout(function(){ 
+      if (error && error.stack) {
+          console.error(error.stack);
+      }
+      throw error; }, 0);
   return reject();
 }
 
@@ -21,7 +26,7 @@ function reThrow(reject, error) {
    * @param {function} callback - Callback method for Action
    * @constructor
    */
-  function Action(callback) {"use strict";
+  function Action(callback) {
     this.callback = callback;
   }
 
@@ -31,7 +36,7 @@ function reThrow(reject, error) {
    * @param {...*} arguments - arguments for callback method
    * @returns Promise object
    */
-  Action.prototype.dispatch=function() {"use strict";
+  Action.prototype.dispatch=function() {
     return Promise.resolve(this.callback.apply(this, arguments))
       .then(function(payload){
         return new Promise(function(resolve, reject){
@@ -39,7 +44,13 @@ function reThrow(reject, error) {
           if (!payload.actionType) return reThrow(reject,
             "Payload object requires an actionType property"
           );
-          Dispatcher.dispatch(payload)
+
+          try {
+            Dispatcher.dispatch(payload);
+          } catch (error) {
+            reThrow(reject, error); 
+          }
+
           resolve();
         });
       });
@@ -49,6 +60,8 @@ function reThrow(reject, error) {
 module.exports = Action;
 
 },{"./Dispatcher":4,"es6-promise":9}],3:[function(require,module,exports){
+'use strict';
+
 var Action = require('./Action');
 var assign = require('object-assign');
 
@@ -64,7 +77,7 @@ var assign = require('object-assign');
    * @param {object} actions - Object with methods to create actions with
    * @constructor
    */
-  function ActionsFactory(actions) {"use strict";
+  function ActionsFactory(actions) {
     var $ActionsFactory_actions = {}, a, action;
     for (a in actions) {
       if(actions.hasOwnProperty(a)){
@@ -77,14 +90,20 @@ var assign = require('object-assign');
 
 
 module.exports = ActionsFactory;
+
 },{"./Action":2,"object-assign":14}],4:[function(require,module,exports){
+'use strict';
+
 var Dispatcher = require('flux').Dispatcher;
 
 /** Creates a singlar instance of Facebook's Dispatcher */
 var AppDispatcher = new Dispatcher();
 
 module.exports = AppDispatcher;
+
 },{"flux":10}],5:[function(require,module,exports){
+'use strict';
+
 var Dispatcher = require('./Dispatcher');
 var Store = require('./Store');
 var ActionsFactory = require('./ActionsFactory');
@@ -101,7 +120,7 @@ var assign = require('object-assign');
    *
    * @constructor
    */
-  function McFly(){"use strict";
+  function McFly(){
     this.actions = {};
     this.stores = [];
     this.dispatcher = Dispatcher;
@@ -115,7 +134,7 @@ var assign = require('object-assign');
    * @param {function} callback - Callback method for Dispatcher dispatches
    * @return {object} - Returns instance of Store
    */
-  McFly.prototype.createStore=function(methods,callback){"use strict";
+  McFly.prototype.createStore=function(methods,callback){
     var store = new Store(methods,callback);
     store.dispatcherID = this.dispatcher.register(store.callback);
     this.stores.push(store);
@@ -129,7 +148,7 @@ var assign = require('object-assign');
    * @param {object} actions - Action methods
    * @return {object} - Returns instance of ActionsFactory
    */
-  McFly.prototype.createActions=function(actions) {"use strict";
+  McFly.prototype.createActions=function(actions) {
     var actionFactory = new ActionsFactory(actions);
     assign(this.actions,actionFactory);
     return actionFactory;
@@ -138,7 +157,10 @@ var assign = require('object-assign');
 
 
 module.exports = McFly;
+
 },{"./ActionsFactory":3,"./Dispatcher":4,"./Store":6,"object-assign":14}],6:[function(require,module,exports){
+'use strict';
+
 var EventEmitter = require('events').EventEmitter;
 var assign = require('object-assign');
 var invariant = require('invariant');
@@ -156,7 +178,7 @@ var invariant = require('invariant');
    * @param {function} callback - Callback method for Dispatcher dispatches
    * @constructor
    */
-  function Store(methods, callback) {"use strict";
+  function Store(methods, callback) {
     var self = this;
     this.callback = callback;
     invariant(!methods.callback, '"callback" is a reserved name and cannot be used as a method name.');
@@ -175,14 +197,14 @@ var invariant = require('invariant');
   /**
    * Returns dispatch token
    */
-  Store.prototype.getDispatchToken=function() {"use strict";
+  Store.prototype.getDispatchToken=function() {
     return this.dispatcherID;
   };
 
   /**
    * Emits change event
    */
-  Store.prototype.emitChange=function() {"use strict";
+  Store.prototype.emitChange=function() {
     this.emit('change');
   };
 
@@ -191,7 +213,7 @@ var invariant = require('invariant');
    *
    * @param {function} callback - Callback method for change event
    */
-  Store.prototype.addChangeListener=function(callback) {"use strict";
+  Store.prototype.addChangeListener=function(callback) {
     this.on('change', callback);
   };
 
@@ -200,13 +222,14 @@ var invariant = require('invariant');
    *
    * @param {function} callback - Callback method for change event
    */
-  Store.prototype.removeChangeListener=function(callback) {"use strict";
+  Store.prototype.removeChangeListener=function(callback) {
     this.removeListener('change', callback);
   };
 
 
 
 module.exports = Store;
+
 },{"events":7,"invariant":13,"object-assign":14}],7:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
